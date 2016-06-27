@@ -47,6 +47,36 @@
 using namespace realm;
 using util::File;
 
+
+RLMSchemaInfo::impl::iterator RLMSchemaInfo::begin() { return m_objects.begin(); }
+RLMSchemaInfo::impl::iterator RLMSchemaInfo::end() { return m_objects.end(); }
+RLMSchemaInfo::impl::const_iterator RLMSchemaInfo::begin() const { return m_objects.begin(); }
+RLMSchemaInfo::impl::const_iterator RLMSchemaInfo::end() const { return m_objects.end(); }
+
+RLMObjectInfo *RLMSchemaInfo::find(NSString *name) const noexcept {
+    auto it = m_objects.find(name);
+    return it == m_objects.end() ? nullptr : const_cast<RLMObjectInfo *>(&it->second); // FIXME
+}
+
+RLMObjectInfo& RLMSchemaInfo::operator[](NSString *name) const {
+    auto it = m_objects.find(name);
+    if (it == m_objects.end())
+        throw "something";
+    return *const_cast<RLMObjectInfo *>(&it->second); // FIXME
+}
+
+void RLMSchemaInfo::init(RLMRealm *realm, RLMSchema *rlmSchema, realm::Schema const& schema) {
+    REALM_ASSERT(rlmSchema.objectSchema.count == schema.size());
+    REALM_ASSERT(m_objects.empty());
+
+    m_objects.reserve(schema.size());
+    for (RLMObjectSchema *rlmObjectSchema in rlmSchema.objectSchema) {
+        m_objects.emplace(std::piecewise_construct,
+                          std::forward_as_tuple(rlmObjectSchema.className),
+                          std::forward_as_tuple(realm, rlmObjectSchema, &*schema.find(rlmObjectSchema.className.UTF8String)));
+    }
+}
+
 @interface RLMRealm ()
 @property (nonatomic, strong) NSHashTable *notificationHandlers;
 - (void)sendNotifications:(RLMNotification)notification;
@@ -166,24 +196,9 @@ static id RLMAutorelease(id value) {
     return value ? (__bridge id)CFAutorelease((__bridge_retained CFTypeRef)value) : nil;
 }
 
-static void RLMCopyColumnMapping(RLMObjectSchema *targetSchema, const ObjectSchema &tableSchema) {
-    REALM_ASSERT_DEBUG(targetSchema.properties.count == tableSchema.persisted_properties.size());
-
-    // copy updated column mapping
-    for (auto const& prop : tableSchema.persisted_properties) {
-        RLMProperty *targetProp = targetSchema[@(prop.name.c_str())];
-        targetProp.column = prop.table_column;
-    }
-}
-
 static void RLMRealmSetSchemaAndAlign(RLMRealm *realm, RLMSchema *targetSchema) {
     realm.schema = targetSchema;
-    for (auto const& aligned : realm->_realm->schema()) {
-        if (RLMObjectSchema *objectSchema = [targetSchema schemaForClassName:@(aligned.name.c_str())]) {
-            objectSchema.realm = realm;
-            RLMCopyColumnMapping(objectSchema, aligned);
-        }
-    }
+    realm->_info.init(realm, targetSchema, realm->_realm->schema());
 }
 
 + (instancetype)realmWithSharedRealm:(SharedRealm)sharedRealm schema:(RLMSchema *)schema {
@@ -293,17 +308,14 @@ REALM_NOINLINE void RLMRealmTranslateException(NSError **error) {
 
     // if we have a cached realm on another thread, copy without a transaction
     if (RLMRealm *cachedRealm = RLMGetAnyCachedRealmForPath(config.path)) {
-        realm.schema = [cachedRealm.schema shallowCopy];
-        for (RLMObjectSchema *objectSchema in realm.schema.objectSchema) {
-            objectSchema.realm = realm;
-        }
+        RLMRealmSetSchemaAndAlign(realm, cachedRealm.schema); // FIXME: can probably optimize
     }
     else if (dynamic) {
         RLMRealmSetSchemaAndAlign(realm, [RLMSchema dynamicSchemaFromObjectStoreSchema:realm->_realm->schema()]);
     }
     else {
         // set/align schema or perform migration if needed
-        RLMSchema *schema = [configuration.customSchema ?: RLMSchema.sharedSchema copy];
+        RLMSchema *schema = configuration.customSchema ?: RLMSchema.sharedSchema;
 
         Realm::MigrationFunction migrationFunction;
         auto migrationBlock = configuration.migrationBlock;
@@ -473,19 +485,19 @@ REALM_NOINLINE void RLMRealmTranslateException(NSError **error) {
 
     [self detachAllEnumerators];
 
-    for (RLMObjectSchema *objectSchema in _schema.objectSchema) {
-        for (RLMObservationInfo *info : objectSchema->_observedObjects) {
+    for (auto& objectInfo : _info) {
+        for (RLMObservationInfo *info : objectInfo.second.observedObjects) {
             info->willChange(RLMInvalidatedKey);
         }
     }
 
     _realm->invalidate();
 
-    for (RLMObjectSchema *objectSchema in _schema.objectSchema) {
-        for (RLMObservationInfo *info : objectSchema->_observedObjects) {
+    for (auto& objectInfo : _info) {
+        for (RLMObservationInfo *info : objectInfo.second.observedObjects) {
             info->didChange(RLMInvalidatedKey);
         }
-        objectSchema.table = nullptr;
+        objectInfo.second.releaseTable();
     }
 }
 

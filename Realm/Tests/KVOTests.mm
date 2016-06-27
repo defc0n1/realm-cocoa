@@ -25,6 +25,8 @@
 #import "RLMRealm_Private.hpp"
 #import "RLMSchema_Private.h"
 
+#import "shared_realm.hpp"
+
 #import <realm/group.hpp>
 
 #import <atomic>
@@ -1319,7 +1321,7 @@ public:
 @implementation KVOMultipleAccessorsTests
 - (id)observableForObject:(id)value {
     if (RLMObject *obj = RLMDynamicCast<RLMObject>(value)) {
-        RLMObject *copy = [[obj.objectSchema.accessorClass alloc] initWithRealm:obj.realm schema:obj.objectSchema];
+        RLMObject *copy = RLMCreateManagedAccessor(obj.objectSchema.accessorClass, obj.realm, obj->_info);
         copy->_row = obj->_row;
         return copy;
     }
@@ -1573,9 +1575,9 @@ public:
     [self.secondaryRealm refresh];
 
     if (RLMObject *obj = RLMDynamicCast<RLMObject>(value)) {
-        RLMObject *copy = [[obj.objectSchema.accessorClass alloc] initWithRealm:self.secondaryRealm
-                                                                         schema:self.secondaryRealm.schema[obj.objectSchema.className]];
-        copy->_row = (*copy.objectSchema.table)[obj->_row.get_index()];
+        RLMObject *copy = RLMCreateManagedAccessor(obj.objectSchema.accessorClass, self.secondaryRealm,
+                                                   &self.secondaryRealm->_info[obj.objectSchema.className]);
+        copy->_row = (*copy->_info->table())[obj->_row.get_index()];
         return copy;
     }
     else if (RLMArray *array = RLMDynamicCast<RLMArray>(value)) {

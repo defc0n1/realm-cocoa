@@ -72,7 +72,7 @@ static void changeArray(__unsafe_unretained RLMArray *const ar, NSKeyValueChange
     changeArray(ar, kind, f, [=] { return is; });
 }
 
-- (instancetype)initWithObjectClassName:(NSString *)objectClassName {
+- (instancetype)initWithObjectClassName:(__unsafe_unretained NSString *const)objectClassName {
     self = [super init];
     if (self) {
         _objectClassName = objectClassName;
@@ -136,7 +136,7 @@ static void RLMValidateMatchingObjectType(RLMArray *array, RLMObject *object) {
     if (!object) {
         @throw RLMException(@"Object must not be nil");
     }
-    if (!object->_objectSchema) {
+    if (!object->_objectSchema) { // FIXME?
         @throw RLMException(@"Object cannot be inserted unless the schema is initialized. "
                             "This can happen if you try to insert objects into a RLMArray / List from a default value or from an overriden unmanaged initializer (`init()`).");
     }

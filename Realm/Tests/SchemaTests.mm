@@ -22,10 +22,12 @@
 
 #import "RLMAccessor.h"
 #import "RLMObjectSchema_Private.hpp"
+#import "RLMObject_Private.h"
 #import "RLMProperty_Private.h"
 #import "RLMRealmConfiguration_Private.h"
 #import "RLMRealm_Dynamic.h"
 #import "RLMSchema_Private.hpp"
+#import "RLMUtil.hpp"
 #import "schema.hpp"
 
 #import <algorithm>
