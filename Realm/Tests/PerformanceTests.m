@@ -21,7 +21,7 @@
 #import "RLMRealm_Dynamic.h"
 #import "RLMRealm_Private.h"
 
-#if !DEBUG && TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+//#if !DEBUG && TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
 
 @interface PerformanceTests : RLMTestCase
 @property (nonatomic) dispatch_queue_t queue;
@@ -608,7 +608,7 @@ static RLMRealm *s_smallRealm, *s_mediumRealm, *s_largeRealm;
 
         [self startMeasuring];
         [realm beginWriteTransaction];
-        for (NSUInteger i = obj.array.count; i > 0; i -= i > 10 ? 10 : i) {
+        for (NSUInteger i = obj.array.count; i > 0; i -= i > 2 ? 2 : i) {
             [obj.array removeObjectAtIndex:i - 1];
         }
         [realm commitWriteTransaction];
@@ -717,4 +717,4 @@ static RLMRealm *s_smallRealm, *s_mediumRealm, *s_largeRealm;
 
 @end
 
-#endif
+//#endif
