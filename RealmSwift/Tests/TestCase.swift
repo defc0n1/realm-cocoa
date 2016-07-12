@@ -105,15 +105,21 @@ class TestCase: XCTestCase {
         RLMRealm.resetRealmState()
     }
 
-    func dispatchSyncNewThread(block: () -> Void) {
-        queue.async {
-            autoreleasepool {
-                block()
-            }
-        }
+    func performBlockAndWait(block: (DispatchQueue) -> ()) {
+        let queue = DispatchQueue(label: "background")
+        block(queue)
         queue.sync { }
     }
 
+    func dispatchAsyncAndWait(block: () -> ()) {
+        performBlockAndWait { queue in
+            queue.async {
+                autoreleasepool {
+                    block()
+                }
+            }
+        }
+    }
     func assertThrows<T>(_ block: @autoclosure(escaping)() -> T, _ message: String? = nil,
                          named: String? = RLMExceptionName, fileName: String = #file, lineNumber: UInt = #line) {
         exceptionThrown = true
