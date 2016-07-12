@@ -687,6 +687,32 @@ static RLMRealm *s_smallRealm, *s_mediumRealm, *s_largeRealm;
     }];
 }
 
+- (void)testPropertyAccessors {
+    RLMRealm *realm = [RLMRealm defaultRealm];
+    [realm beginWriteTransaction];
+    StringObject *so = [StringObject createInRealm:realm withValue:@[@""]];
+    for (int i = 0; i < 50000; ++i) @autoreleasepool {
+        [AllTypesObject createInRealm:realm withValue:@[@YES, @1, @1.0f, @1.0, @"a",
+                                                        [@"a" dataUsingEncoding:NSUTF8StringEncoding], NSDate.date,
+                                                        @YES, @((long)1), so]];
+    }
+    [realm commitWriteTransaction];
+
+    [self measureBlock:^{
+        for (AllTypesObject *obj in [AllTypesObject allObjectsInRealm:realm]) {
+            (void)[obj boolCol];
+            (void)[obj intCol];
+            (void)[obj floatCol];
+            (void)[obj doubleCol];
+            (void)[obj stringCol];
+            (void)[obj dateCol];
+            (void)[obj cBoolCol];
+            (void)[obj longCol];
+            (void)[obj objectCol];
+        }
+    }];
+}
+
 - (void)observeObject:(RLMObject *)object keyPath:(NSString *)keyPath until:(int (^)(id))block {
     self.sema = dispatch_semaphore_create(0);
     self.queue = dispatch_queue_create("bg", 0);
