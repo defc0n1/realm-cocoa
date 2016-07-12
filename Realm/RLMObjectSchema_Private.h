@@ -49,11 +49,13 @@ public:
     RLMProperty *propertyForTableColumn(NSUInteger) const;
     NSUInteger tableColumn(NSString *propertyName) const;
     NSUInteger tableColumn(RLMProperty *property) const;
+    RLMObjectInfo &linkTargetType(size_t index);
 
     void releaseTable();
 
 private:
     mutable realm::Table *_Nullable _table = nullptr;
+    std::vector<RLMObjectInfo *> _linkTargets;
 };
 
 #else // __cplusplus

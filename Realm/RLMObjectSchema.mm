@@ -68,6 +68,17 @@ NSUInteger RLMObjectInfo::tableColumn(RLMProperty *property) const {
     return objectSchema->persisted_properties[property.index].table_column;
 }
 
+RLMObjectInfo &RLMObjectInfo::linkTargetType(size_t index) {
+    if (index < _linkTargets.size() && _linkTargets[index]) {
+        return *_linkTargets[index];
+    }
+    if (_linkTargets.size() <= index) {
+        _linkTargets.resize(index + 1);
+    }
+    _linkTargets[index] = &realm->_info[rlmObjectSchema.properties[index].objectClassName];
+    return *_linkTargets[index];
+}
+
 // private properties
 @interface RLMObjectSchema ()
 @property (nonatomic, readwrite) NSDictionary<id, RLMProperty *> *allPropertiesByName;
